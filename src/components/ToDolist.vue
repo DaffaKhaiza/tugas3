@@ -7,9 +7,9 @@
     </div>
     <ul>
       <li v-for="(todo, index) in todos" :key="index">
-        <input type="checkbox" v-model="todo.completed" @change="toggleTodoCompletion(index)" />
+        <input type="checkbox" v-model="todo.completed" @change="saveTodos" />
         <span :class="{ completed: todo.completed }">{{ todo.text }}</span>
-        <button @click="editTodoText(index)" class="edit-btn">✎</button>
+        <button @click="editTodo(index)" class="edit-btn">✎</button>
         <button @click="deleteTodo(index)" class="delete-btn">✗</button>
       </li>
     </ul>
@@ -24,60 +24,70 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
-import { useTodoStore } from '../store/useTodoStore'
 
 export default {
   setup() {
     const newTodo = ref('');
+    const todos = ref([]);
     const editing = ref(null);
     const editedText = ref('');
-    const todoStore = useTodoStore();
 
-    onMounted(() => {
-      todoStore.loadTodos();
+    const incompleteTodosCount = computed(() => {
+      return todos.value.filter(todo => !todo.completed).length;
     });
 
     const addTodo = () => {
       if (newTodo.value.trim() !== '') {
-        todoStore.addTodo(newTodo.value);
+        todos.value.push({ text: newTodo.value, completed: false });
         newTodo.value = '';
+        saveTodos();
       }
     };
 
     const deleteTodo = (index) => {
-      todoStore.deleteTodo(index);
+      todos.value.splice(index, 1);
+      saveTodos();
     };
 
-    const editTodoText = (index) => {
+    const editTodo = (index) => {
       editing.value = index;
-      editedText.value = todoStore.todos[index].text;
+      editedText.value = todos.value[index].text;
     };
 
     const updateTodo = () => {
       if (editing.value !== null) {
-        todoStore.editTodoText(editing.value, editedText.value);
+        todos.value[editing.value].text = editedText.value;
         editing.value = null;
         editedText.value = '';
+        saveTodos();
       }
     };
 
-    const toggleTodoCompletion = (index) => {
-      todoStore.toggleTodoCompletion(index);
+    const saveTodos = () => {
+      localStorage.setItem('todos', JSON.stringify(todos.value));
     };
+
+    const loadTodos = () => {
+      const savedTodos = localStorage.getItem('todos');
+      if (savedTodos) {
+        todos.value = JSON.parse(savedTodos);
+      }
+    };
+
+    onMounted(() => {
+      loadTodos();
+    });
 
     return {
       newTodo,
-      todos: computed(() => todoStore.todos),
+      todos,
       editing,
       editedText,
-      incompleteTodosCount: computed(() => {
-        return todoStore.todos.filter(todo => !todo.completed).length;
-      }),
+      incompleteTodosCount,
       addTodo,
       deleteTodo,
-      editTodoText,
+      editTodo,
       updateTodo,
-      toggleTodoCompletion,
     };
   },
 };
